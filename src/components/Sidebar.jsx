@@ -22,10 +22,10 @@ const Sidebar = () => {
       dir="rtl"
     >
       
-      {/* --- 1. الشعار (بدون إضافات، كبير، ويكبر عند الهوفر) --- */}
+      {/* --- 1. الشعار (تم تعديل المسار ليعمل على جيت هاب بنجاح) --- */}
       <div className="mb-10 flex-shrink-0 w-full flex justify-center px-2">
         <img 
-          src="/logo.svg" 
+          src={`${import.meta.env.BASE_URL}logo.svg`} 
           alt="شعار وصال" 
           className="w-20 h-20 object-contain hover:scale-110 transition-transform duration-300 drop-shadow-2xl"
           onError={(e) => { e.target.style.display = 'none'; }} 

@@ -179,12 +179,14 @@ const VisionLogin = () => {
         <div className="text-center mb-6 flex flex-col items-center">
           <div className="mb-4 relative">
             <div className="absolute -inset-4 bg-blue-100/50 rounded-full blur-xl animate-pulse"></div>
+            {/* 🚀 التعديل هنا: استخدام المسار السليم للوجو وإيقاف اللوب اللانهائي */}
             <img
-              src="/logo.svg"
+              src={`${import.meta.env.BASE_URL}logo.svg`}
               alt="شعار وصال"
               className="w-28 h-auto mx-auto hover:scale-105 transition-transform duration-300 drop-shadow-sm relative z-10"
               onError={(e) => {
-                e.target.src = "https://via.placeholder.com/128?text=Wisal";
+                e.target.onerror = null; // يمنع اللوب
+                e.target.src = "https://placehold.co/128x128/png?text=Wisal";
               }}
             />
           </div>

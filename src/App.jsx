@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import './App.css';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+// 🚀 التعديل الأهم هنا: استخدام HashRouter بدلاً من BrowserRouter
+import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import VisionLogin from './pages/VisionLogin';
 import VisionDashboard from './pages/VisionDashboard';
 import Profile from './pages/Profile'; // استدعاء صفحة الحساب الشخصي
@@ -50,6 +51,7 @@ function App() {
     // 2. التعديل الأهم: تغليف التطبيق بالكامل بـ AuthProvider 
     // ليمنح صلاحيات useAuth لجميع الصفحات داخله
     <AuthProvider>
+      {/* 🚀 تم تغيير الـ Router ليكون HashRouter */}
       <Router>
         <AppContent />
       </Router>
