@@ -1,27 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, MapPin, Mail, Phone, Hash, Edit3, X, LogOut, ShieldCheck, ChevronRight, Loader2 } from 'lucide-react';
-import { authAPI } from '../services/api'; // تأكد من مسار الاستيراد
-import { useAuth } from '../context/AuthContext'; // تأكد من مسار الاستيراد
+import { authAPI } from '../services/api'; 
+import { useAuth } from '../context/AuthContext'; 
 
 const Profile = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     
     // حالات جلب البيانات
     const [userData, setUserData] = useState(null);
+    const [centerName, setCenterName] = useState('مركز رؤية معتمد'); 
     const [loading, setLoading] = useState(true);
 
     const navigate = useNavigate();
-    const { logout } = useAuth(); // استخدام دالة الخروج من الـ Context
+    const { logout } = useAuth();
 
-    // جلب بيانات المستخدم عند تحميل الصفحة
+    // جلب بيانات المستخدم
     useEffect(() => {
         const fetchProfileData = async () => {
             try {
                 setLoading(true);
+                // جلب بيانات المستخدم الأساسية فقط
                 const response = await authAPI.getCurrentUser();
-                // استخراج البيانات (سواء جاءت من الـ API أو الـ LocalStorage)
                 setUserData(response.data);
+                
+                // ملاحظة: تم إيقاف جلب قائمة المراكز لتجنب خطأ 403 
+                // سيتم الاعتماد على الباك إند لإرسال اسم المركز مستقبلاً
             } catch (error) {
                 console.error("خطأ في جلب بيانات المستخدم:", error);
             } finally {
@@ -33,11 +37,10 @@ const Profile = () => {
     }, []);
 
     const handleLogout = () => {
-        logout(); // يمسح التوكن وبيانات المستخدم بشكل نظيف
+        logout(); 
         navigate('/login');
     };
 
-    // شاشة تحميل مؤقتة
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
@@ -46,12 +49,14 @@ const Profile = () => {
         );
     }
 
-    // تجهيز البيانات للعرض مع وضع قيم افتراضية في حال نقص بعض الحقول
+    // تجهيز البيانات للعرض
     const displayName = userData?.fullName || userData?.name || 'مستخدم النظام';
-    const displayRole = userData?.role || 'موظف مركز الرؤية';
-    const displayLocation = userData?.location || 'مركز الرؤية';
-    const displayEmpId = userData?.userName || userData?.id || 'غير متوفر';
-    const displayPhone = userData?.phoneNumber || userData?.phone || 'غير متوفر';
+    const displayRole = `موظف (${centerName})`; 
+    const displayLocation = centerName; 
+    
+    // استخدام أول 8 حروف من الـ ID كـ "رقم وظيفي" لغياب الحقل في الداتا
+    const displayEmpId = userData?.id ? userData.id.substring(0, 8).toUpperCase() : 'غير متوفر'; 
+    const displayPhone = userData?.phone || userData?.phoneNumber || 'غير متوفر';
     const displayEmail = userData?.email || 'غير متوفر';
 
     return (
@@ -185,7 +190,7 @@ const Profile = () => {
                 </div>
              </div>
 
-            {/* Edit Request Modal (يظل كما هو واجهة للطلب) */}
+            {/* Edit Request Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in">
                     <div className="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl relative overflow-hidden">

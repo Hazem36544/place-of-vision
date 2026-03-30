@@ -91,10 +91,8 @@ export const authAPI = {
     loginParent: (creds) => api.post('/api/auth/parent/sign-in', creds),
     changePassword: (data) => api.patch('/api/users/change-password', data),
     
-    getCurrentUser: () => {
-        const savedUser = localStorage.getItem('wesal_user_data');
-        return Promise.resolve({ data: savedUser ? JSON.parse(savedUser) : {} });
-    }
+    // ✅ تم التعديل هنا لربط جلب بيانات البروفايل الخاص بموظف الرؤية بالسيرفر
+    getCurrentUser: () => api.get('/api/visit-center-staffs/me')
 };
 
 /**
@@ -150,23 +148,11 @@ export const lookupAPI = {
 
 /**
  * --- [ D. خدمات مركز الرؤية - Visitation Execution ] ---
- * (تم التعديل بدقة للتطابق مع Swagger وشاشة VisionDashboard)
  */
 export const visitationAPI = {
-    // جلب وبحث قائمة الزيارات (تدعم الفلترة بـ Date, Status, NationalId, FamilyId)
-    // متطابق مع: GET /api/visitations
     searchVisitations: (params) => api.get('/api/visitations', { params }),
-    
-    // تسجيل الحضور بإرسال الرقم القومي (nationalId) في الـ Body
-    // متطابق مع: PATCH /api/visitations/{visitationId}/check-in
     checkInVisitation: (id, data) => api.patch(`/api/visitations/${id}/check-in`, data),
-    
-    // إنهاء الزيارة
-    // متطابق مع: PATCH /api/visitations/{visitationId}/complete
     completeVisitation: (id) => api.patch(`/api/visitations/${id}/complete`),
-    
-    // تحديد مرافق للزيارة بإرسال (companionNationalId) في الـ Body
-    // متطابق مع: PATCH /api/visitations/{visitationId}
     setCompanion: (id, data) => api.patch(`/api/visitations/${id}`, data),
 };
 
