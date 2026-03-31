@@ -2,11 +2,17 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, User, LogOut } from 'lucide-react';
 
+// ✅ 1. استدعاء useAuth من الكونتكست
+import { useAuth } from '../context/AuthContext';
+
 const Sidebar = () => { 
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // ✅ 2. سحب دالة الخروج
+  const { logout } = useAuth();
 
-  // دالة تحديد ستايل الرابط النشط وغير النشط (نفس كود المدرسة)
+  // دالة تحديد ستايل الرابط النشط وغير النشط
   const getLinkClass = (path) => {
     const isActive = location.pathname === path;
     return `w-full py-3 flex flex-col items-center justify-center gap-1 rounded-2xl transition-all duration-300 group ${
@@ -22,7 +28,7 @@ const Sidebar = () => {
       dir="rtl"
     >
       
-      {/* --- 1. الشعار (تم تعديل المسار ليعمل على جيت هاب بنجاح) --- */}
+      {/* --- 1. الشعار --- */}
       <div className="mb-10 flex-shrink-0 w-full flex justify-center px-2">
         <img 
           src={`${import.meta.env.BASE_URL}logo.svg`} 
@@ -32,7 +38,7 @@ const Sidebar = () => {
         />
       </div>
 
-      {/* --- 2. روابط التنقل (مركزية ورأسية) --- */}
+      {/* --- 2. روابط التنقل --- */}
       <nav className="flex flex-col items-center gap-4 w-full px-3 flex-1">
         
         <Link to="/dashboard" className={getLinkClass('/dashboard')}>
@@ -51,8 +57,8 @@ const Sidebar = () => {
       <div className="mt-auto w-full px-3 pb-4">
          <button 
             onClick={() => {
-                // Clear any auth state if exists
-                localStorage.removeItem('token'); 
+                // ✅ 3. استخدام دالة logout بدلاً من المسح اليدوي
+                logout(); 
                 navigate('/');
             }}
             className="w-full py-3 flex flex-col items-center justify-center gap-1 rounded-2xl text-red-300 hover:bg-red-500/20 hover:text-red-100 transition-all duration-300 border border-transparent hover:border-red-500/20 outline-none"

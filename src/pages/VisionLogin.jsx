@@ -11,8 +11,14 @@ import { useNavigate } from "react-router-dom";
 import api, { authAPI } from "../services/api";
 import { toast } from "react-hot-toast";
 
+// ✅ 1. استدعاء useAuth من الكونتكست
+import { useAuth } from "../context/AuthContext";
+
 const VisionLogin = () => {
   const navigate = useNavigate();
+  // ✅ 2. سحب دالة login لتحديث حالة التطبيق
+  const { login } = useAuth(); 
+  
   const [step, setStep] = useState("login"); // 'login' or 'change_password'
 
   const [email, setEmail] = useState("");
@@ -27,17 +33,26 @@ const VisionLogin = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // التقاط أمر التغيير الإجباري إن وجد من زيارة سابقة
+  // =========================================================================
+  // التنظيف الذكي والتقاط أمر التغيير الإجباري
+  // =========================================================================
   useEffect(() => {
+    // التحقق مما إذا كان هناك أمر إجباري بتغيير كلمة المرور من Interceptor
     if (localStorage.getItem("force_change_password") === "true") {
       setStep("change_password");
       setPassword("");
       setError("يرجى تغيير كلمة المرور المؤقتة قبل الدخول للنظام");
+    } else {
+      // التنظيف الذكي: إذا تم فتح صفحة اللوجين بشكل طبيعي، نقوم بمسح التوكن 
+      // الخاص بمركز الرؤية فقط كإجراء وقائي (تسجيل خروج ضمني)، ولا نلمس الأنظمة الأخرى.
+      localStorage.removeItem("wesal_visitation_token");
+      localStorage.removeItem("wesal_visitation_user_role");
+      localStorage.removeItem("wesal_visitation_user_data");
     }
   }, []);
 
   // =========================================================================
-  // 1. تسجيل الدخول + الاختبار المخفي (Pre-flight Check)
+  // 1. تسجيل الدخول + فحص التوكن المباشر
   // =========================================================================
   const handleLoginSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -56,33 +71,31 @@ const VisionLogin = () => {
       const token = response.data?.token || response.data?.accessToken;
 
       if (token) {
-        // الخطوة 2: حفظ التوكن
-        localStorage.setItem("wesal_token", token);
-        localStorage.setItem("wesal_user_role", "visitation_center");
+        // ✅ الخطوة 2: استخدام دالة login من الكونتكست لحفظ التوكن وتحديث الحالة
+        // هذا هو التعديل الذي سيمنع طردك لصفحة اللوجين مرة أخرى
+        login(token, "visitation_center", null);
 
-        // الخطوة 3: الاختبار المخفي للتوكن المقيد
+        // الخطوة 3: فحص البايلود الخاص بالتوكن للتأكد من حالة كلمة المرور
+        let isTempPassword = false;
         try {
-          await api.get("/api/visitations?PageNumber=1&PageSize=1", {
-            skipAuthRedirect: true,
-          });
+          const payload = JSON.parse(atob(token.split(".")[1]));
+          if (payload.tmp_pwd === "True" || payload.tmp_pwd === true) {
+            isTempPassword = true;
+          }
+        } catch (decodeErr) {
+          console.error("Error reading token", decodeErr);
+        }
 
-          // إذا نجح الطلب -> التوكن كامل الصلاحيات
+        if (isTempPassword) {
+          console.log("Temporary password, redirecting to change screen...");
+          setStep("change_password");
+          toast("يجب تأمين حسابك بكلمة مرور جديدة أولاً", {
+            icon: "🔒",
+            duration: 4000,
+          });
+        } else {
           toast.success("تم تسجيل الدخول بنجاح");
           navigate("/dashboard");
-        } catch (pingErr) {
-          // إذا فشل الطلب بـ 403 -> التوكن مقيد (كلمة مرور مؤقتة)
-          if (pingErr.response?.status === 403) {
-            setStep("change_password");
-            setError("يرجى تأمين حسابك بكلمة مرور جديدة قبل الدخول للداشبورد.");
-            toast("يجب تأمين حسابك بكلمة مرور جديدة أولاً", {
-              icon: "🔒",
-              duration: 4000,
-            });
-          } else {
-            // أي خطأ آخر، ننتقل للداشبورد وهي تعالجه
-            toast.success("تم تسجيل الدخول بنجاح");
-            navigate("/dashboard");
-          }
         }
       } else {
         throw new Error("لم يتم العثور على رمز المصادقة");
@@ -128,12 +141,15 @@ const VisionLogin = () => {
         newPassword: newPassword,
       });
 
-      // التعديل هنا: رسالة نجاح، مسح البيانات المؤقتة، والرجوع للوجين
+      // رسالة نجاح
       toast.success(
-        "تم تغيير كلمة المرور بنجاح! يرجى تسجيل الدخول بالكلمة الجديدة.",
+        "تم تغيير كلمة المرور بنجاح! يرجى تسجيل الدخول بالكلمة الجديدة."
       );
+      
+      // تنظيف البيانات المؤقتة الخاصة بمركز الرؤية فقط
       localStorage.removeItem("force_change_password");
-      localStorage.removeItem("wesal_token");
+      localStorage.removeItem("wesal_visitation_token");
+      localStorage.removeItem("wesal_visitation_user_role");
 
       setStep("login");
       setPassword("");
@@ -179,13 +195,12 @@ const VisionLogin = () => {
         <div className="text-center mb-6 flex flex-col items-center">
           <div className="mb-4 relative">
             <div className="absolute -inset-4 bg-blue-100/50 rounded-full blur-xl animate-pulse"></div>
-            {/* 🚀 التعديل هنا: استخدام المسار السليم للوجو وإيقاف اللوب اللانهائي */}
             <img
               src={`${import.meta.env.BASE_URL}logo.svg`}
               alt="شعار وصال"
               className="w-28 h-auto mx-auto hover:scale-105 transition-transform duration-300 drop-shadow-sm relative z-10"
               onError={(e) => {
-                e.target.onerror = null; // يمنع اللوب
+                e.target.onerror = null;
                 e.target.src = "https://placehold.co/128x128/png?text=Wisal";
               }}
             />

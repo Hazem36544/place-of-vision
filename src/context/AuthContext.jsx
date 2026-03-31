@@ -5,9 +5,9 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   // 1. التهيئة المتزامنة: نقرأ التوكن مباشرة من الـ localStorage عند أول تحميل
-  // هذا يمنع طرد المستخدم لصفحة تسجيل الدخول عند عمل Reload للصفحة
+  // ✅ التعديل: استخدام المفتاح الخاص بنظام مركز الرؤية فقط (wesal_visitation_token)
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    const token = localStorage.getItem('wesal_token');
+    const token = localStorage.getItem('wesal_visitation_token');
     return !!token; 
   });
 
@@ -16,25 +16,25 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // تأكيد إضافي لتحديث الحالة وإغلاق شاشة التحميل بعد الـ Render الأول
-    const token = localStorage.getItem('wesal_token');
+    const token = localStorage.getItem('wesal_visitation_token');
     setIsAuthenticated(!!token);
     setIsLoading(false);
   }, []);
 
-  // دالة تسجيل الدخول (تحفظ التوكن والبيانات)
+  // دالة تسجيل الدخول (تحفظ التوكن والبيانات في المفاتيح المعزولة)
   const login = (token, role, userData) => {
-    if (token) localStorage.setItem('wesal_token', token);
-    if (role) localStorage.setItem('wesal_user_role', role);
-    if (userData) localStorage.setItem('wesal_user_data', JSON.stringify(userData));
+    if (token) localStorage.setItem('wesal_visitation_token', token);
+    if (role) localStorage.setItem('wesal_visitation_user_role', role);
+    if (userData) localStorage.setItem('wesal_visitation_user_data', JSON.stringify(userData));
     
     setIsAuthenticated(true);
   };
   
-  // دالة تسجيل الخروج (تمسح كل شيء)
+  // دالة تسجيل الخروج (تمسح بيانات مركز الرؤية فقط دون المساس بالأنظمة الأخرى)
   const logout = () => {
-    localStorage.removeItem('wesal_token');
-    localStorage.removeItem('wesal_user_role');
-    localStorage.removeItem('wesal_user_data');
+    localStorage.removeItem('wesal_visitation_token');
+    localStorage.removeItem('wesal_visitation_user_role');
+    localStorage.removeItem('wesal_visitation_user_data');
     setIsAuthenticated(false);
   };
 
