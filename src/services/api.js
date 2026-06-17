@@ -1,10 +1,7 @@
-console.log("Current API URL:", import.meta.env.VITE_API_URL);
 import axios from 'axios';
+console.log("Current API URL:", import.meta.env.VITE_API_URL);
 
-/**
- * 1. الإعدادات الأساسية
- */
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://wesal.runasp.net'; 
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://wesal.runasp.net';
 
 const api = axios.create({
     baseURL: BASE_URL,
@@ -15,13 +12,12 @@ const api = axios.create({
 });
 
 /**
- * 2. Request Interceptor: حقن التوكن (تم التعديل لمفتاح مركز الرؤية)
+ * 2. Request Interceptor: حقن التوكن
  */
 api.interceptors.request.use(
     (config) => {
-        // ✅ التعديل الدقيق: استخدام التوكن الخاص بمركز الرؤية فقط
-        const token = localStorage.getItem('wesal_visitation_token');
-        
+        // ✅ التأكد من استخدام مفتاح الرؤية المعزول
+        const token = sessionStorage.getItem('wesal_visitation_token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`; 
         }
@@ -31,38 +27,39 @@ api.interceptors.request.use(
 );
 
 /**
- * 3. Response Interceptor: معالجة الأخطاء بشكل موحد (تم التعديل لتنظيف مفاتيح الرؤية)
+ * 3. Response Interceptor: معالجة الأخطاء والتنظيف
  */
 api.interceptors.response.use(
     (response) => response,
     (error) => {
         const skipRedirect = error.config?.skipAuthRedirect;
 
-        // ✅ --- التقاط 403 للتوكن المقيد (الباسورد المؤقت) ---
+        // ✅ --- التقاط 403 (الباسورد المؤقت) ---
         if (error.response && error.response.status === 403) {
             const serverError = error.response.data;
             const message = serverError?.detail || serverError?.title || "";
             
-            if (message.toLowerCase().includes("temporary password")) {
-                console.warn("Temporary password detected - redirecting to change password...");
-                localStorage.setItem('force_change_password', 'true'); 
+            if (message.toLowerCase().includes("temporary password") || message.includes("تغيير كلمة المرور")) {
+                sessionStorage.setItem('force_change_password', 'true'); 
                 
                 if (!skipRedirect) {
-                    window.location.href = '/'; 
+                    // ✅ الحل: التوجيه لمسار المشروع الصحيح على GitHub Pages
+                    window.location.href = import.meta.env.BASE_URL; 
                 }
                 return Promise.reject(error); 
             }
         }
 
-        // ✅ --- التعامل العادي مع 401 (انتهاء صلاحية التوكن) ---
+        // ✅ --- التعامل مع 401 (انتهى التوكن) ---
         if (error.response && error.response.status === 401) {
-            console.warn("Unauthorized access - redirecting to login...");
-            // ✅ تنظيف الداتا الخاصة بمركز الرؤية فقط
-            localStorage.removeItem('wesal_visitation_token'); 
-            localStorage.removeItem('wesal_visitation_user_data'); 
+            // تنظيف كل داتا الرؤية لضمان خروج نظيف
+            sessionStorage.removeItem('wesal_visitation_token'); 
+            sessionStorage.removeItem('wesal_visitation_user_data'); 
+            sessionStorage.removeItem('wesal_visitation_user_role');
             
             if (!skipRedirect) {
-                window.location.href = '/'; 
+                // ✅ الحل: التوجيه لمسار المشروع الصحيح
+                window.location.href = import.meta.env.BASE_URL; 
             }
         }
         
@@ -75,46 +72,30 @@ api.interceptors.response.use(
     }
 );
 
-/**
- * --- [ A. خدمات الهوية - Auth ] ---
- */
 export const authAPI = {
     loginVisitation: (creds) => api.post('/api/auth/visit-center-staff/sign-in', creds),
     changePassword: (data) => api.patch('/api/users/change-password', data),
-    // جلب بيانات البروفايل الخاص بموظف الرؤية
-    getCurrentUser: () => api.get('/api/visit-center-staffs/me')
+    getCurrentUser: () => api.get('/api/visit-center-staff/me')
 };
 
-/**
- * --- [ C. خدمات البيانات المساعدة - Lookups ] ---
- */
 export const lookupAPI = {
-    getVisitationLocations: (params) => api.get('/api/visitation-locations', { params }),
-    createLocation: (data) => api.post('/api/visitation-locations', data),
-    updateLocation: (id, data) => api.put(`/api/visitation-locations/${id}`, data),
-    deleteLocation: (id) => api.delete(`/api/visitation-locations/${id}`),
+    getVisitationLocations: (params) => api.get('/api/visit-centers', { params }),
+    createLocation: (data) => api.post('/api/visit-centers', data),
+    updateLocation: (id, data) => api.put(`/api/visit-centers/${id}`, data),
+    deleteLocation: (id) => api.delete(`/api/visit-centers/${id}`),
 };
 
-/**
- * --- [ D. خدمات مركز الرؤية - Visitation Execution ] ---
- */
 export const visitationAPI = {
-    searchVisitations: (params) => api.get('/api/visitations', { params }),
-    checkInVisitation: (id, data) => api.patch(`/api/visitations/${id}/check-in`, data),
-    completeVisitation: (id) => api.patch(`/api/visitations/${id}/complete`),
-    setCompanion: (id, data) => api.patch(`/api/visitations/${id}`, data),
+    searchVisitations: (params) => api.get('/api/visit-sessions', { params }),
+    checkInVisitation: (id, data) => api.patch(`/api/visit-sessions/${id}/check-in`, data),
+    completeVisitation: (id) => api.patch(`/api/visit-sessions/${id}/check-out`),
+    setCompanion: (id, data) => api.patch(`/api/visit-sessions/${id}`, data),
 };
 
-/**
- * --- [ I. الإشعارات والملفات - Common ] ---
- */
 export const commonAPI = {
-    // الإشعارات
     getUnreadNotificationsCount: () => api.get('/api/notifications/unread-count'),
     listNotifications: (params) => api.get('/api/notifications/me', { params }),
     markAsRead: (id) => api.patch(`/api/notifications/${id}/read`),
-    
-    // الأجهزة
     registerDevice: (data) => api.post('/api/notifications/devices', data),
     unregisterDevice: (token) => api.delete(`/api/user-devices/${token}`),
 };

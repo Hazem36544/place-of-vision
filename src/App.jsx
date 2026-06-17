@@ -1,81 +1,123 @@
-import { useState } from 'react';
+import React, { Suspense, lazy } from 'react';
 import './App.css';
-import { HashRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
-import VisionLogin from './pages/VisionLogin';
-import VisionDashboard from './pages/VisionDashboard';
-import Profile from './pages/Profile';
-import Sidebar from './components/Sidebar';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// استدعاء AuthProvider و useAuth من ملف الـ Context
+// ✅ 1. استدعاء Toaster لعرض الإشعارات و Loader2 للتحميل
+import { Toaster } from 'react-hot-toast'; 
+import { Loader2 } from 'lucide-react'; 
+
 import { AuthProvider, useAuth } from './context/AuthContext';
 
-// ✅ مكون حماية المسارات (يمنع الدخول المباشر للروابط بدون تسجيل دخول)
+// ✅ 2. تطبيق التحميل الديناميكي (Lazy Loading) لتسريع أداء التطبيق
+const VisionLogin = lazy(() => import('./pages/visionLogin/VisionLogin'));
+const VisionDashboard = lazy(() => import('./pages/visionDashboard/VisionDashboard'));
+const Profile = lazy(() => import('./pages/profile/Profile'));
+const MainLayout = lazy(() => import('./layouts/MainLayout'));
+
+// مكون حماية المسارات
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    // يمكن استبدالها بـ Spinner احترافي لو أردت
-    return <div className="h-screen flex items-center justify-center font-bold text-blue-900">جاري التحقق من الصلاحيات...</div>;
+    return (
+      <div className="h-screen flex flex-col items-center justify-center font-sans bg-[#F3F4F6]" dir="rtl">
+        <Loader2 className="w-12 h-12 animate-spin text-[#1e3a8a] mb-4" />
+        <span className="font-bold text-[#1e3a8a] text-lg">جاري التحقق من الصلاحيات...</span>
+      </div>
+    );
   }
 
   if (!isAuthenticated) {
-    // إذا لم يكن هناك توكن، إرجاعه لصفحة تسجيل الدخول
     return <Navigate to="/" replace />;
   }
 
   return children;
 };
 
-const AppContent = () => {
-  const location = useLocation();
-  
-  const isLoginPage = location.pathname === '/' || location.pathname === '/vision-login';
+// ✅ 3. تنظيم المسارات بشكل احترافي (Nested Routing) مع إضافة Suspense
+const AppRoutes = () => {
+  const { isAuthenticated } = useAuth();
 
   return (
-    <div className="h-screen w-full bg-[#F3F4F6] font-[Cairo] overflow-hidden flex" dir="rtl">
-      
-      {!isLoginPage && <Sidebar />}
-
-      <main className={`h-screen overflow-y-auto transition-all duration-300 ${!isLoginPage ? 'mr-28 flex-1' : 'w-full'}`}>
-        <div className={!isLoginPage ? "p-8 pb-20" : ""}> 
-          
-          <Routes>
-            {/* مسارات تسجيل الدخول (Public) */}
-            <Route path="/" element={<VisionLogin />} />
-            <Route path="/vision-login" element={<VisionLogin />} />
-
-            {/* ✅ مسارات لوحة التحكم والحساب (Protected) */}
-            <Route 
-              path="/dashboard" 
-              element={
-                <ProtectedRoute>
-                  <VisionDashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/profile" 
-              element={
-                <ProtectedRoute>
-                  <Profile />
-                </ProtectedRoute>
-              } 
-            />
-            
-          </Routes>
-          
+    <Router>
+      <Suspense fallback={
+        <div className="h-screen flex flex-col items-center justify-center font-sans bg-[#F3F4F6]" dir="rtl">
+          <Loader2 className="w-12 h-12 animate-spin text-[#1e3a8a] mb-4" />
+          <span className="font-bold text-[#1e3a8a] text-lg">جاري تحميل الشاشة...</span>
         </div>
-      </main>
-    </div>
+      }>
+        <Routes>
+          {/* مسار تسجيل الدخول (Public) */}
+          <Route 
+            path="/" 
+            element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <VisionLogin />} 
+          />
+          
+          <Route path="/vision-login" element={<Navigate to="/" replace />} /> {/* توجيه لتوحيد المسار */}
+
+          {/* ✅ مسارات النظام المغلفة بـ MainLayout (Protected) */}
+          <Route 
+            element={
+              <ProtectedRoute>
+                <MainLayout />
+              </ProtectedRoute>
+            }
+          >
+            {/* أي صفحة هنا هتترندر مكان الـ <Outlet /> جوه الـ MainLayout */}
+            <Route path="/dashboard" element={<VisionDashboard />} />
+            <Route path="/profile" element={<Profile />} />
+          </Route>
+
+          {/* مسار افتراضي لأي رابط غير صحيح */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
+    </Router>
   );
 };
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <AppContent />
-      </Router>
+      {/* ✅ 4. إضافة Toaster وتخصيصه ليطابق تصميم الكبسولة الفخم في نظام الإدارة */}
+      <Toaster 
+        position="top-center"
+        reverseOrder={false}
+        toastOptions={{
+          duration: 4000,
+          style: {
+            fontFamily: '"Times New Roman", "Traditional Arabic", serif',
+            fontWeight: 'bold',
+            borderRadius: '9999px', // شكل الكبسولة الناعم
+            padding: '12px 24px',
+            direction: 'rtl',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)'
+          },
+          success: {
+            style: {
+              background: '#ECFDF5', // الخلفية الخضراء الفاتحة المريحة
+              color: '#065F46',      // لون النص الأخضر الغامق
+              border: '1px solid #A7F3D0',
+            },
+            iconTheme: {
+              primary: '#10B981',    // لون الأيقونة
+              secondary: '#FFFFFF',
+            },
+          },
+          error: {
+            style: {
+              background: '#FEF2F2', // خلفية حمراء فاتحة للخطأ
+              color: '#991B1B',
+              border: '1px solid #FECACA',
+            },
+            iconTheme: {
+              primary: '#EF4444',
+              secondary: '#FFFFFF',
+            },
+          },
+        }} 
+      />
+      <AppRoutes />
     </AuthProvider>
   );
 }
